@@ -111,6 +111,7 @@ begin
   AWhere := NullAsStringValue;
   Result := True;
   AContexto := TRttiContext.Create;
+  QueryTmp := nil;
   try
     ATipo := AContexto.GetType(ClassType);
     for AAtributo in ATipo.GetAttributes do
@@ -180,6 +181,7 @@ var
 begin
   AWhere := ' 1=2 ';
   AContexto := TRttiContext.Create;
+  QueryTmp := nil;
   try
     ATipo := AContexto.GetType(ClassType);
     for AAtributo in ATipo.GetAttributes do

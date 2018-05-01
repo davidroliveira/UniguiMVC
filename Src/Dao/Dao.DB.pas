@@ -124,8 +124,6 @@ end;
 
 function TConexao.Open(var Erro: string): Boolean;
 begin
-  Result := False;
-
   try
     FConexao.Connected := False;
 
