@@ -1,4 +1,4 @@
-unit View.Main;
+unit View.Main.Form;
 
 interface
 
@@ -6,12 +6,10 @@ uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics,
   Controls, Forms, uniGUITypes, uniGUIAbstractClasses,
   uniGUIClasses, uniGUIRegClasses, uniGUIForm, uniGUIBaseClasses, uniButton,
-  uniEdit,
-
-  View.BaseForm;
+  uniEdit, View.Base.Form;
 
 type
-  TMain = class(TBaseForm)
+  TMainForm = class(TBaseForm)
     UniButton1: TUniButton;
     UniEdit1: TUniEdit;
   private

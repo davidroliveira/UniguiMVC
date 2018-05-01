@@ -1,8 +1,8 @@
-object Main: TMain
+object MainForm: TMainForm
   Left = 0
   Top = 0
-  Caption = 'Main'
-  ClientHeight = 213
+  Caption = 'MainForm'
+  ClientHeight = 412
   ClientWidth = 641
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET

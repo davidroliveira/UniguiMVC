@@ -90,6 +90,7 @@
         <DCC_DcpOutput>..\Dcu</DCC_DcpOutput>
         <VerInfo_Locale>1046</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
+        <SanitizedProjectName>UniguiMVC</SanitizedProjectName>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Android)'!=''">
         <DCC_UsePackage>DBXSqliteDriver;DBXInterBaseDriver;tethering;bindcompfmx;FmxTeeUI;fmx;FireDACDBXDriver;dbexpress;IndyCore;dsnap;DataSnapCommon;bindengine;DataSnapClient;bindcompdbx;IndyIPCommon;IndyIPServer;IndySystem;fmxFireDAC;ibmonitor;FMXTee;DbxCommonDriver;ibxpress;xmlrtl;DataSnapNativeClient;ibxbindings;rtl;FireDACDSDriver;DbxClientDriver;CustomIPTransport;bindcomp;IndyIPClient;dbxcds;dsnapxml;DataSnapProviderClient;dbrtl;IndyProtocols;$(DCC_UsePackage)</DCC_UsePackage>
@@ -151,27 +152,43 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="View\View.ServerModule.pas">
-            <Form>ServerModule</Form>
+        <DCCReference Include="View\View.Module.Server.pas">
+            <Form>ModuleServer</Form>
             <DesignClass>TUniGUIServerModule</DesignClass>
         </DCCReference>
-        <DCCReference Include="View\View.MainModule.pas">
-            <Form>MainModule</Form>
+        <DCCReference Include="View\View.Module.Main.pas">
+            <Form>ModuleMain</Form>
             <DesignClass>TUniGUIMainModule</DesignClass>
         </DCCReference>
-        <DCCReference Include="View\View.BaseForm.pas">
+        <DCCReference Include="View\View.Base.Form.pas">
             <Form>BaseForm</Form>
             <DesignClass>TUniForm</DesignClass>
         </DCCReference>
-        <DCCReference Include="View\View.Main.pas">
-            <Form>Main</Form>
+        <DCCReference Include="View\View.Main.Form.pas">
+            <Form>MainForm</Form>
         </DCCReference>
-        <DCCReference Include="Controller\Controller.ServerModule.pas"/>
-        <DCCReference Include="Controller\Controller.MainModule.pas"/>
-        <DCCReference Include="Controller\Controller.Main.pas"/>
+        <DCCReference Include="Controller\Controller.Module.Server.pas"/>
+        <DCCReference Include="Controller\Controller.Module.Main.pas"/>
+        <DCCReference Include="Controller\Controller.Main.Form.pas"/>
         <DCCReference Include="Dao\Dao.Atributo.pas"/>
         <DCCReference Include="Dao\Dao.Persistencia.pas"/>
         <DCCReference Include="Dao\Dao.DB.pas"/>
+        <DCCReference Include="View\View.Base.Lista.pas">
+            <Form>BaseLista</Form>
+            <FormType>dfm</FormType>
+            <DesignClass>TUniForm</DesignClass>
+        </DCCReference>
+        <DCCReference Include="View\View.Base.Ficha.pas">
+            <Form>BaseFicha</Form>
+            <FormType>dfm</FormType>
+            <DesignClass>TUniForm</DesignClass>
+        </DCCReference>
+        <DCCReference Include="View\View.Combustivel.Lista.pas">
+            <Form>ViewCombustivelLista</Form>
+            <FormType>dfm</FormType>
+            <DesignClass>TUniForm</DesignClass>
+        </DCCReference>
+        <DCCReference Include="Model\Model.Combustivel.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -200,7 +217,7 @@
                 </Excluded_Packages>
             </Delphi.Personality>
             <Deployment Version="3">
-                <DeployFile LocalName="Win32\Debug\UniguiMVC.exe" Configuration="Debug" Class="ProjectOutput">
+                <DeployFile LocalName="..\Bin\UniguiMVC.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteName>UniguiMVC.exe</RemoteName>
                         <Overwrite>true</Overwrite>

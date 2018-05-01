@@ -1,4 +1,4 @@
-object MainModule: TMainModule
+object ModuleMain: TModuleMain
   OldCreateOrder = False
   MonitoredKeys.Keys = <>
   Height = 150

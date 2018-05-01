@@ -1,4 +1,4 @@
-unit View.ServerModule;
+unit View.Module.Server;
 
 interface
 
@@ -7,7 +7,7 @@ uses
   uIdCustomHTTPServer, uniGUITypes;
 
 type
-  TServerModule = class(TUniGUIServerModule)
+  TModuleServer = class(TUniGUIServerModule)
   private
     { Private declarations }
   public

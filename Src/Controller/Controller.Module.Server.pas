@@ -1,27 +1,27 @@
-unit Controller.ServerModule;
+unit Controller.Module.Server;
 
 interface
 
 uses
   Forms, Classes, SysUtils, uniGUIServer, uniGUIMainModule, uniGUIApplication,
-  uIdCustomHTTPServer, uniGUITypes, UniGUIVars, View.ServerModule;
+  uIdCustomHTTPServer, uniGUITypes, UniGUIVars, View.Module.Server;
 
 type
-  EInstanciaServerModuleError = class(Exception);
+  EInstanciaModuleServerError = class(Exception);
 
-  TControllerServerModule = class
+  TControllerModuleServer = class
   strict private
-    FView: TServerModule;
-    class var FInstancia: TControllerServerModule;
+    FView: TModuleServer;
+    class var FInstancia: TControllerModuleServer;
     constructor CreatePrivate;
     procedure Init;
     procedure UniGUIServerModuleDestroy(Sender: TObject);
   public
     constructor Create;
-    class function GetInstancia: TControllerServerModule;
+    class function GetInstancia: TControllerModuleServer;
   end;
 
-  TServerModuleHelper = class(TServerModule)
+  TServerModuleHelper = class(TModuleServer)
   protected
     procedure FirstInit; override;
   end;
@@ -39,33 +39,33 @@ begin
   InitServerModule(Self);
 end;
 
-{ TControllerServerModule }
+{ TControllerModuleServer }
 
-constructor TControllerServerModule.Create;
+constructor TControllerModuleServer.Create;
 begin
-  raise EInstanciaServerModuleError.CreateResFmt(@MsgInstanciaServerModuleError, [Self.ClassName]);
+  raise EInstanciaModuleServerError.CreateResFmt(@MsgInstanciaServerModuleError, [Self.ClassName]);
 end;
 
-constructor TControllerServerModule.CreatePrivate;
+constructor TControllerModuleServer.CreatePrivate;
 begin
   inherited Create;
   Init;
 end;
 
-class function TControllerServerModule.GetInstancia: TControllerServerModule;
+class function TControllerModuleServer.GetInstancia: TControllerModuleServer;
 begin
   if not Assigned(FInstancia) then
-    FInstancia := TControllerServerModule.CreatePrivate;
+    FInstancia := TControllerModuleServer.CreatePrivate;
   Result := FInstancia;
 end;
 
-procedure TControllerServerModule.Init;
+procedure TControllerModuleServer.Init;
 begin
   FView := TServerModuleHelper.Create(Application);
   FView.OnDestroy := Self.UniGUIServerModuleDestroy;
 end;
 
-procedure TControllerServerModule.UniGUIServerModuleDestroy(Sender: TObject);
+procedure TControllerModuleServer.UniGUIServerModuleDestroy(Sender: TObject);
 begin
   Free;
 end;

@@ -1,4 +1,4 @@
-unit View.MainModule;
+unit View.Module.Main;
 
 interface
 
@@ -6,7 +6,7 @@ uses
   uniGUIMainModule, SysUtils, Classes;
 
 type
-  TMainModule = class(TUniGUIMainModule)
+  TModuleMain = class(TUniGUIMainModule)
   private
     { Private declarations }
   public

@@ -1,4 +1,4 @@
-unit Controller.Main;
+unit Controller.Main.Form;
 
 interface
 
@@ -6,69 +6,69 @@ uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics,
   Controls, Forms, uniGUITypes, uniGUIAbstractClasses,
   uniGUIClasses, uniGUIRegClasses, uniGUIForm, uniGUIBaseClasses,
-  uniGUIApplication, uniGUIVars, View.Main;
+  uniGUIApplication, uniGUIVars, View.Main.Form;
 
 type
-  TControllerMain = class
+  TControllerMainForm = class
   strict private
-    FView: TMain;
+    FView: TMainForm;
     procedure Init;
     procedure UniFormDestroy(Sender: TObject);
     procedure UniFormCreate(Sender: TObject);
   public
-    constructor Create(Aview: TMain);
+    constructor Create(Aview: TMainForm);
     procedure UniButton1Click(Sender: TObject);
   end;
 
-  TMainHelper = class(TMain)
+  TMainFormHelper = class(TMainForm)
   private
-    FController: TControllerMain;
+    FController: TControllerMainForm;
   public
     constructor Create(Aowner: TComponent); override;
   end;
 
 implementation
 
-{ TMainHelper }
+{ TMainFormHelper }
 
-constructor TMainHelper.Create(Aowner: TComponent);
+constructor TMainFormHelper.Create(Aowner: TComponent);
 begin
   inherited;
   if not Assigned(FController) then
-    FController := TControllerMain.Create(Self);
+    FController := TControllerMainForm.Create(Self);
 end;
 
-{ TControllerMain }
+{ TControllerMainForm }
 
-constructor TControllerMain.Create(Aview: TMain);
+constructor TControllerMainForm.Create(Aview: TMainForm);
 begin
   inherited Create;
   FView := Aview;
   Init;
 end;
 
-procedure TControllerMain.Init;
+procedure TControllerMainForm.Init;
 begin
   FView.OnCreate := UniFormCreate;
   FView.UniButton1.OnClick := Self.UniButton1Click;
   FView.OnDestroy := Self.UniFormDestroy;
 end;
 
-procedure TControllerMain.UniButton1Click(Sender: TObject);
+procedure TControllerMainForm.UniButton1Click(Sender: TObject);
 begin
   FView.ShowMessage(FView.UniEdit1.Text);
 end;
 
-procedure TControllerMain.UniFormCreate(Sender: TObject);
+procedure TControllerMainForm.UniFormCreate(Sender: TObject);
 begin
   FView.UniEdit1.Text := 'Controller!';
 end;
 
-procedure TControllerMain.UniFormDestroy(Sender: TObject);
+procedure TControllerMainForm.UniFormDestroy(Sender: TObject);
 begin
   Free;
 end;
 
 initialization
-  RegisterAppFormClass(TMainHelper);
+  RegisterAppFormClass(TMainFormHelper);
 end.

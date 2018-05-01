@@ -1,14 +1,14 @@
-unit View.BaseForm;
+unit View.Base.Ficha;
 
 interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics,
   Controls, Forms, uniGUITypes, uniGUIAbstractClasses,
-  uniGUIClasses, uniGUIForm;
+  uniGUIClasses, uniGUIForm, View.Base.Form;
 
 type
-  TBaseForm = class(TUniForm)
+  TBaseFicha = class(TBaseForm)
   private
     { Private declarations }
   public
@@ -17,10 +17,6 @@ type
 
 implementation
 
-uses
-  uniGUIApplication;
-
 {$R *.dfm}
-
 
 end.

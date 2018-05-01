@@ -1,4 +1,4 @@
-object ServerModule: TServerModule
+object ModuleServer: TModuleServer
   OldCreateOrder = False
   TempFolder = 'temp\'
   Title = 'New Application'
