@@ -189,6 +189,13 @@
             <DesignClass>TUniForm</DesignClass>
         </DCCReference>
         <DCCReference Include="Model\Model.Combustivel.pas"/>
+        <DCCReference Include="Controller\Controller.Combustivel.pas"/>
+        <DCCReference Include="Controller\Controller.Base.pas"/>
+        <DCCReference Include="View\View.Combustivel.Ficha.pas">
+            <Form>ViewCombustivelFicha</Form>
+            <FormType>dfm</FormType>
+            <DesignClass>TUniForm</DesignClass>
+        </DCCReference>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

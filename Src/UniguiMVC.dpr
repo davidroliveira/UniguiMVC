@@ -15,7 +15,10 @@ uses
   View.Base.Lista in 'View\View.Base.Lista.pas' {BaseLista: TUniForm},
   View.Base.Ficha in 'View\View.Base.Ficha.pas' {BaseFicha: TUniForm},
   View.Combustivel.Lista in 'View\View.Combustivel.Lista.pas' {ViewCombustivelLista: TUniForm},
-  Model.Combustivel in 'Model\Model.Combustivel.pas';
+  Model.Combustivel in 'Model\Model.Combustivel.pas',
+  Controller.Combustivel in 'Controller\Controller.Combustivel.pas',
+  Controller.Base in 'Controller\Controller.Base.pas',
+  View.Combustivel.Ficha in 'View\View.Combustivel.Ficha.pas' {ViewCombustivelFicha: TUniForm};
 
 {$R *.res}
 
