@@ -4,7 +4,7 @@ interface
 
 uses
   Rtti, StrUtils, System.Variants, Classes, System.SysUtils, Vcl.Forms,
-  System.TypInfo,
+  System.TypInfo, Data.DB,
 
   Dao.DB, Dao.Atributo,
 
@@ -14,8 +14,6 @@ type
   TPersistencia = class
   strict private
     FSQL: string;
-    function GetValue(const APropriedade: TRttiProperty): String;
-    procedure SetValue(APropriedade: TRttiProperty; AValor: Variant);
     function GetNomedaTabela: string;
     function GetCampoChavePrimaria: string;
   public
@@ -23,80 +21,114 @@ type
     property NomedaTabela: string read GetNomedaTabela;
     property NomeCampoChavePrimaria: string read GetCampoChavePrimaria;
 
-    function Inserir(out Erro: string): Boolean;
-    function Alterar(out Erro: string): Boolean;
-    function Excluir(out Erro: string): Boolean;
+    function Inserir: Boolean; virtual;
+    function Alterar: Boolean; virtual;
+    function Excluir: Boolean; virtual;
 
     function Carregar(const AValor: Int64): Boolean; overload; virtual; abstract;
     function Carregar: Boolean; overload;
-
-    procedure Clear;
 
   end;
 
 implementation
 
-{ TPersistencia }
-
-function TPersistencia.Alterar(out Erro: string): Boolean;
+function TPersistencia.Alterar: Boolean;
 var
   AContexto: TRttiContext;
   ATipo: TRttiType;
   APropriedade: TRttiProperty;
   AAtributo: TCustomAttribute;
-  ASql, ACampo, AWhere, AErro: string;
+  ANomeTabela, ACampo, ASql, AWhere: string;
+  Parametros, ParametrosPK: array of TParametroQuery;
+  Parametro, ParametroPK: TParametroQuery;
+  QueryTmp: TFDQuery;
 begin
-  AWhere := NullAsStringValue;
+  Result := False;
   ACampo := NullAsStringValue;
-  Result := True;
+  setLength(Parametros,0);
+  setLength(ParametrosPK,0);
   AContexto := TRttiContext.Create;
   try
     ATipo := AContexto.GetType(ClassType);
-
     for AAtributo in ATipo.GetAttributes do
     begin
-      Application.ProcessMessages;
       if AAtributo is Tabela then
-        ASql := 'UPDATE ' + Tabela(AAtributo).Nome + ' SET ';
+      begin
+        ANomeTabela := Tabela(AAtributo).Nome;
+        Break;
+      end;
     end;
-
     for APropriedade in ATipo.GetProperties do
     begin
-      Application.ProcessMessages;
       for AAtributo in APropriedade.GetAttributes do
       begin
-        Application.ProcessMessages;
         if AAtributo is Campo then
         begin
-          if (not Campo(AAtributo).AutoIncrementa) and (not Campo(AAtributo).ChavePrimaria) then
-            ACampo := ACampo + Campo(AAtributo).Nome + ' = ' + GetValue(APropriedade) + ','
-          else if Campo(AAtributo).ChavePrimaria then
+          ACampo := ACampo + '       ' + Campo(AAtributo).Nome + ',' + sLineBreak;
+          if APropriedade.GetValue(Self).AsVariant <> Null then
           begin
-            if AWhere = NullAsStringValue then
-              AWhere := '(' + Campo(AAtributo).Nome + ' = ' + GetValue(APropriedade) + ')'
+            if (Campo(AAtributo).ChavePrimaria) then
+            begin
+              SetLength(ParametrosPK, Length(ParametrosPK)+1);
+              ParametrosPK[high(ParametrosPK)].Name := Campo(AAtributo).Nome;
+              ParametrosPK[high(ParametrosPK)].Value := APropriedade.GetValue(Self).AsVariant;
+            end
             else
-              AWhere := AWhere + ' AND (' + Campo(AAtributo).Nome + ')';
-          end;
+            begin
+              SetLength(Parametros, Length(Parametros)+1);
+              Parametros[high(Parametros)].Name := Campo(AAtributo).Nome;
+              Parametros[high(Parametros)].Value := APropriedade.GetValue(Self).AsVariant;
+            end;
+          end
         end;
       end;
     end;
-
+    AWhere := NullAsStringValue;
+    for ParametroPK in ParametrosPK do
+    begin
+      if AWhere = NullAsStringValue then
+        AWhere := AWhere + 'WHERE '
+      else
+        AWhere := AWhere + '  AND ';
+      AWhere := AWhere + '(' + ParametroPK.Name + ' = :' + ParametroPK.Name + ')';
+    end;
+      
+    ACampo := Trim(ACampo);
     ACampo := Copy(ACampo, 1, ACampo.Length - 1);
-    ASql := ASql + ACampo + ' WHERE ' + AWhere;
-
-    if Trim(FSQL) <> NullAsStringValue then
-      ASql := FSQL;
-
-    Result := TConexao.GetInstancia.ExecuteSQL(ASql, AErro);
-
-    if not result then
-      raise Exception.Create(AErro);
-
+    ASql :=
+      'SELECT ' + ACampo + sLineBreak +
+      '  FROM ' + ANomeTabela + sLineBreak +
+      ' ' + AWhere;
+    QueryTmp := TConexao.GetInstancia.CriaQuery(ASql, ParametrosPK);
+    try
+      QueryTmp.Edit;
+      for Parametro in Parametros do
+      begin
+        if VarToStrDef(Parametro.Value,NullAsStringValue) = NullAsStringValue then
+          QueryTmp.FieldByName(Parametro.Name).Clear
+        else if QueryTmp.FieldByName(Parametro.Name) is TBlobField then
+          raise Exception.Create('Implementar Persistencia TBlobField')
+          //TBlobField(QueryTmp.FieldByName(Parametro.Name)).LoadFromStream(Parametro.Value)
+        else
+          QueryTmp.FieldByName(Parametro.Name).Value := Parametro.Value;
+      end;
+      QueryTmp.Post;
+      for APropriedade in ATipo.GetProperties do
+      begin
+        for AAtributo in APropriedade.GetAttributes do
+        begin
+          if (AAtributo is Campo) then
+            APropriedade.SetValue(Self, Tvalue.FromVariant(QueryTmp.FieldByName(Campo(AAtributo).Nome).Value));
+        end;
+      end;
+      QueryTmp.Close;
+      Result := True;
+    finally
+      FreeAndNil(QueryTmp);
+    end;
   finally
-    SQL := NullAsStringValue;
     AContexto.Free;
   end;
-  Erro := AErro;
 end;
 
 function TPersistencia.Carregar: Boolean;
@@ -105,175 +137,159 @@ var
   ATipo: TRttiType;
   APropriedade: TRttiProperty;
   AAtributo: TCustomAttribute;
-  ASql, AWhere: string;
+  ANomeTabela, AWhere, ACampo, ASql: string;
+  ParametrosPK: array of TParametroQuery;
+  ParametroPK: TParametroQuery;
   QueryTmp: TFDQuery;
 begin
-  AWhere := NullAsStringValue;
-  Result := True;
+  Result := False;
+  setLength(ParametrosPK,0);
   AContexto := TRttiContext.Create;
-  QueryTmp := nil;
   try
     ATipo := AContexto.GetType(ClassType);
     for AAtributo in ATipo.GetAttributes do
     begin
-      Application.ProcessMessages;
       if AAtributo is Tabela then
-        ASql := 'SELECT * FROM ' + Tabela(AAtributo).Nome;
-    end;
-
-    for APropriedade in ATipo.GetProperties do
-    begin
-      Application.ProcessMessages;
-      for AAtributo in APropriedade.GetAttributes do
       begin
-        Application.ProcessMessages;
-        if AAtributo is Campo then
-        begin
-          if Campo(AAtributo).ChavePrimaria then
-            AWhere := '(' + Campo(AAtributo).Nome + ' = ' + GetValue(APropriedade) + ')'
-        end;
+        ANomeTabela := Tabela(AAtributo).Nome;
+        Break;
       end;
     end;
-
-    ASql := ASql + ' WHERE ' + AWhere;
-
-    if Trim(FSQL) <> NullAsStringValue then
-      ASQL := FSQL;
-
-    QueryTmp := TConexao.GetInstancia.CriaQuery(ASql);
-    Result := Assigned(QueryTmp) and (QueryTmp.RecordCount > 0);
-
     for APropriedade in ATipo.GetProperties do
     begin
-      Application.ProcessMessages;
       for AAtributo in APropriedade.GetAttributes do
       begin
         if AAtributo is Campo then
         begin
-          if Assigned(QueryTmp.FindField(Campo(AAtributo).Nome)) then
+          ACampo := ACampo + '       ' + Campo(AAtributo).Nome + ',' + sLineBreak;
+          if APropriedade.GetValue(Self).AsVariant <> Null then
           begin
-            if QueryTmp.IsEmpty then
-              SetValue(APropriedade, Null)
-            else
-              SetValue(APropriedade, QueryTmp.FieldByName(Campo(AAtributo).Nome).Value);
-          end;
+            if (Campo(AAtributo).ChavePrimaria) then
+            begin
+              SetLength(ParametrosPK, Length(ParametrosPK)+1);
+              ParametrosPK[high(ParametrosPK)].Name := Campo(AAtributo).Nome;
+              ParametrosPK[high(ParametrosPK)].Value := APropriedade.GetValue(Self).AsVariant;
+            end
+          end
         end;
       end;
     end;
+    AWhere := NullAsStringValue;
+    for ParametroPK in ParametrosPK do
+    begin
+      if AWhere = NullAsStringValue then
+        AWhere := AWhere + 'WHERE '
+      else
+        AWhere := AWhere + '  AND ';
+      AWhere := AWhere + '(' + ParametroPK.Name + ' = :' + ParametroPK.Name + ')';
+    end;
 
+    ACampo := Trim(ACampo);
+    ACampo := Copy(ACampo, 1, ACampo.Length - 1);
+    ASql :=
+      'SELECT ' + ACampo + sLineBreak +
+      '  FROM ' + ANomeTabela + sLineBreak +
+      ' ' + AWhere;
+    QueryTmp := TConexao.GetInstancia.CriaQuery(ASql, ParametrosPK);
+    try
+      for APropriedade in ATipo.GetProperties do
+      begin
+        for AAtributo in APropriedade.GetAttributes do
+        begin
+          if (AAtributo is Campo) then
+            APropriedade.SetValue(Self, Tvalue.FromVariant(QueryTmp.FieldByName(Campo(AAtributo).Nome).Value));
+        end;
+      end;
+      QueryTmp.Close;
+      Result := True;
+    finally
+      FreeAndNil(QueryTmp);
+    end;
   finally
-    if Assigned(QueryTmp) then
-      QueryTmp.Free;
-
-    SQL := NullAsStringValue;
+    QueryTmp.Free;
     AContexto.Free;
   end;
 end;
 
-procedure TPersistencia.Clear;
+function TPersistencia.Excluir: Boolean;
 var
   AContexto: TRttiContext;
   ATipo: TRttiType;
   APropriedade: TRttiProperty;
   AAtributo: TCustomAttribute;
-  ASql, AWhere: string;
+  ANomeTabela, ACampo, AWhere, ASql: string;
+  ParametrosPK: array of TParametroQuery;
+  ParametroPK: TParametroQuery;
   QueryTmp: TFDQuery;
 begin
-  AWhere := ' 1=2 ';
+  Result := False;
+  setLength(ParametrosPK,0);
   AContexto := TRttiContext.Create;
-  QueryTmp := nil;
   try
     ATipo := AContexto.GetType(ClassType);
+
     for AAtributo in ATipo.GetAttributes do
     begin
-      Application.ProcessMessages;
       if AAtributo is Tabela then
-        ASql := 'SELECT * FROM ' + Tabela(AAtributo).Nome;
-    end;
-
-    ASql := ASql + ' WHERE ' + AWhere;
-
-    if Trim(FSQL) <> NullAsStringValue then
-      ASQL := FSQL;
-
-    QueryTmp := TConexao.GetInstancia.CriaQuery(ASql);
-
-    for APropriedade in ATipo.GetProperties do
-    begin
-      Application.ProcessMessages;
-      for AAtributo in APropriedade.GetAttributes do
       begin
-        if AAtributo is Campo then
-        begin
-          if Assigned(QueryTmp.FindField(Campo(AAtributo).Nome)) then
-            SetValue(APropriedade, Null)
-        end;
+        ANomeTabela := Tabela(AAtributo).Nome;
+        Break;
       end;
     end;
-
-  finally
-    if Assigned(QueryTmp) then
-      QueryTmp.Free;
-
-    SQL := NullAsStringValue;
-    AContexto.Free;
-  end;
-end;
-
-function TPersistencia.Excluir(out Erro: string): Boolean;
-var
-  AContexto: TRttiContext;
-  ATipo: TRttiType;
-  APropriedade: TRttiProperty;
-  AAtributo: TCustomAttribute;
-  ASql, AWhere, AErro: string;
-begin
-  AWhere := NullAsStringValue;
-  Result := True;
-  AContexto := TRttiContext.Create;
-  try
-    ATipo := AContexto.GetType(ClassType);
-    for AAtributo in ATipo.GetAttributes do
-    begin
-      Application.ProcessMessages;
-      if AAtributo is Tabela then
-        ASql := 'DELETE FROM ' + Tabela(AAtributo).Nome;
-    end;
-
     for APropriedade in ATipo.GetProperties do
     begin
-      Application.ProcessMessages;
       for AAtributo in APropriedade.GetAttributes do
       begin
-        Application.ProcessMessages;
         if AAtributo is Campo then
         begin
-          if Campo(AAtributo).ChavePrimaria then
+          if APropriedade.GetValue(Self).AsVariant <> Null then
           begin
-            if AWhere = NullAsStringValue then
-              AWhere := '(' + Campo(AAtributo).Nome + ' = ' + GetValue(APropriedade) + ')'
-            else
-              AWhere := AWhere + ' AND (' + Campo(AAtributo).Nome + ')';
-          end;
+            if (Campo(AAtributo).ChavePrimaria) then
+            begin
+              ACampo := ACampo + '       ' + Campo(AAtributo).Nome + ',' + sLineBreak;
+              SetLength(ParametrosPK, Length(ParametrosPK)+1);
+              ParametrosPK[high(ParametrosPK)].Name := Campo(AAtributo).Nome;
+              ParametrosPK[high(ParametrosPK)].Value := APropriedade.GetValue(Self).AsVariant;
+            end
+          end
         end;
       end;
     end;
+    AWhere := NullAsStringValue;
+    for ParametroPK in ParametrosPK do
+    begin
+      if AWhere = NullAsStringValue then
+        AWhere := AWhere + 'WHERE '
+      else
+        AWhere := AWhere + '  AND ';
+      AWhere := AWhere + '(' + ParametroPK.Name + ' = :' + ParametroPK.Name + ')';
+    end;
 
-    ASql := ASql + ' WHERE ' + AWhere;
-
-    if Trim(FSQL) <> NullAsStringValue then
-      ASql := FSQL;
-
-    Result := TConexao.GetInstancia.ExecuteSQL(ASql, AErro);
-
-    if not result then
-      raise Exception.Create(AErro);
-
+    ACampo := Trim(ACampo);
+    ACampo := Copy(ACampo, 1, ACampo.Length - 1);
+    ASql :=
+      'SELECT ' + ACampo + sLineBreak +
+      '  FROM ' + ANomeTabela + sLineBreak +
+      ' ' + AWhere;
+    QueryTmp := TConexao.GetInstancia.CriaQuery(ASql, ParametrosPK);
+    try
+      QueryTmp.Delete;
+      for APropriedade in ATipo.GetProperties do
+      begin
+        for AAtributo in APropriedade.GetAttributes do
+        begin
+          if (AAtributo is Campo) then
+            APropriedade.SetValue(Self, Tvalue.FromVariant(Null));
+        end;
+      end;
+      QueryTmp.Close;
+      Result := True;
+    finally
+      FreeAndNil(QueryTmp);
+    end;
   finally
-    SQL := NullAsStringValue;
     AContexto.Free;
   end;
-  Erro := AErro;
 end;
 
 function TPersistencia.GetCampoChavePrimaria: string;
@@ -287,13 +303,10 @@ begin
   AContexto := TRttiContext.Create;
   try
     ATipo := AContexto.GetType(ClassType);
-
     for APropriedade in ATipo.GetProperties do
     begin
-      Application.ProcessMessages;
       for AAtributo in APropriedade.GetAttributes do
       begin
-        Application.ProcessMessages;
         if AAtributo is Campo then
         begin
           if Campo(AAtributo).ChavePrimaria then
@@ -318,165 +331,95 @@ begin
     ATipo := AContexto.GetType(ClassType);
     for AAtributo in ATipo.GetAttributes do
     begin
-      Application.ProcessMessages;
       if AAtributo is Tabela then
         Result := Tabela(AAtributo).Nome;
     end;
   finally
     AContexto.Free;
   end;
-
 end;
 
-function TPersistencia.GetValue(const APropriedade: TRttiProperty): String;
-begin
-  case APropriedade.PropertyType.TypeKind of
-    tkUnknown: Result := APropriedade.GetValue(Self).ToString;
-    tkInteger: Result := APropriedade.GetValue(Self).ToString;
-    tkChar: Result := QuotedStr(APropriedade.GetValue(Self).ToString);
-    tkEnumeration: Result := IntToStr(Integer(APropriedade.GetValue(Self).AsBoolean));
-    tkFloat:
-      begin
-        //if APropriedade.PropertyType.Name = 'TDateTime' then
-        if APropriedade.PropertyType.Handle = TypeInfo(TDate) then
-          Result := QuotedStr(FormatDateTime('DD.MM.YYYY', APropriedade.GetValue(Self).AsType<TDate>))
-        else if APropriedade.PropertyType.Handle = TypeInfo(TTime) then
-          Result := QuotedStr(FormatDateTime('HH:NN:SS', APropriedade.GetValue(Self).AsType<TTime>))
-        else if APropriedade.PropertyType.Handle = TypeInfo(TDateTime) then
-          Result := QuotedStr(FormatDateTime('DD.MM.YYYY HH:NN:SS', APropriedade.GetValue(Self).AsType<TDateTime>))
-        else
-          Result := StringReplace(FormatFloat('0.00', APropriedade.GetValue(Self).AsCurrency), FormatSettings.DecimalSeparator, '.', [rfReplaceAll, rfIgnoreCase]);
-      end;
-    tkString: Result := QuotedStr(APropriedade.GetValue(Self).ToString);
-    //tkSet: ;
-    //tkClass: ;
-    //tkMethod: ;
-    tkWChar: Result := QuotedStr(APropriedade.GetValue(Self).ToString);
-    tkLString: Result := QuotedStr(APropriedade.GetValue(Self).ToString);
-    tkWString: Result := QuotedStr(APropriedade.GetValue(Self).ToString);
-    //tkVariant: ;
-    //tkArray: ;
-    //tkRecord: ;
-    //tkInterface: ;
-    tkInt64: Result := APropriedade.GetValue(Self).ToString;
-    //tkDynArray: ;
-    tkUString: Result := QuotedStr(APropriedade.GetValue(Self).ToString);
-    //tkClassRef: ;
-    //tkPointer: ;
-    //tkProcedure: ;
-  end;
-
-  if (Result = '0') then
-    Result := 'null';
-
-end;
-
-function TPersistencia.Inserir(out Erro: string): Boolean;
+function TPersistencia.Inserir: Boolean;
 var
   AContexto: TRttiContext;
   ATipo: TRttiType;
   APropriedade: TRttiProperty;
   AAtributo: TCustomAttribute;
-  ASql, ACampo, AValor, AChave, ANomeTabela, AErro: string;
+  ANomeTabela, ACampo, ASql: string;
+  Parametros: array of TParametroQuery;
+  Parametro: TParametroQuery;
   QueryTmp: TFDQuery;
 begin
+  Result := False;
   ACampo := NullAsStringValue;
-  AValor := NullAsStringValue;
-
-  TConexao.GetInstancia.IniciaTransacao;
+  setLength(Parametros,0);
   AContexto := TRttiContext.Create;
   try
-    try
-      ATipo := AContexto.GetType(ClassType);
-
-      for AAtributo in ATipo.GetAttributes do
-      begin
-        Application.ProcessMessages;
-        if AAtributo is Tabela then
-        begin
-          ASql := 'INSERT INTO ' + Tabela(AAtributo).Nome;
-          ANomeTabela := Tabela(AAtributo).Nome;
-        end;
-      end;
-
-      for APropriedade in ATipo.GetProperties do
-      begin
-        Application.ProcessMessages;
-        for AAtributo in APropriedade.GetAttributes do
-        begin
-          Application.ProcessMessages;
-          if AAtributo is Campo then
-          begin
-            if not (Campo(AAtributo).AutoIncrementa) then
-            begin
-              ACampo := ACampo + Campo(AAtributo).Nome + ',';
-              AValor := AValor + GetValue(APropriedade) + ',';
-            end
-            else
-              AChave := Campo(AAtributo).Nome;
-          end;
-        end;
-      end;
-
-      ACampo := Copy(ACampo, 1, ACampo.Length - 1);
-      AValor := Copy(AValor, 1, AValor.Length - 1);
-
-      ASql := ASql + '(' + ACampo + ') VALUES (' + AValor + ')';
-
-      if Trim(FSQL) <> NullAsStringValue then
-        ASql := ASql + SQL;
-
-      Result := TConexao.GetInstancia.ExecuteSQL(ASql, AErro);
-
-      ASql := 'SELECT ' + AChave + ' FROM ' + ANomeTabela + ' ORDER BY ' + AChave + ' DESC';
-
-      QueryTmp := TConexao.GetInstancia.CriaQuery(ASql);
-      QueryTmp.FetchAll;
-
-      for APropriedade in ATipo.GetProperties do
-      begin
-        Application.ProcessMessages;
-        for AAtributo in APropriedade.GetAttributes do
-        begin
-          Application.ProcessMessages;
-          if (AAtributo is Campo) and (Campo(AAtributo).AutoIncrementa) then
-            APropriedade.SetValue(Self, tvalue.FromVariant(QueryTmp.Fields[0].AsInteger));
-        end;
-      end;
-
-    //except on E: Exception do
-    finally
-      ASql := NullAsStringValue;
-      TConexao.GetInstancia.CommitaTransacao;
-      AContexto.Free;
-    end;
-  except
-    TConexao.GetInstancia.RollbackTransacao;
-    Raise;
-  end;
-  Erro := AErro;
-end;
-
-procedure TPersistencia.SetValue(APropriedade: TRttiProperty; AValor: Variant);
-var
-  Valor: TValue;
-  TipoVariavel: Word;
-begin
-  TipoVariavel := VarType(AValor);
-
-  case TipoVariavel of
-    varInteger: Valor := StrToInt(Avalor);
-    varInt64: Valor := StrToInt64(Avalor);
-    271 : Valor := VarToDateTime(AValor); //DateTimeToStr(Avalor)
-    else
+    ATipo := AContexto.GetType(ClassType);
+    for AAtributo in ATipo.GetAttributes do
     begin
-      APropriedade.SetValue(Self, Tvalue.FromVariant(AValor));
-      Exit;
+      if AAtributo is Tabela then
+      begin
+        ANomeTabela := Tabela(AAtributo).Nome;
+        Break;
+      end;
     end;
+    for APropriedade in ATipo.GetProperties do
+    begin
+      for AAtributo in APropriedade.GetAttributes do
+      begin
+        if AAtributo is Campo then
+        begin
+          ACampo := ACampo + '       ' + Campo(AAtributo).Nome + ',' + sLineBreak;
+          if APropriedade.GetValue(Self).AsVariant <> Null then
+          begin
+            if not (Campo(AAtributo).ChavePrimaria) then
+            begin
+              SetLength(Parametros, Length(Parametros)+1);
+              Parametros[high(Parametros)].Name := Campo(AAtributo).Nome;
+              Parametros[high(Parametros)].Value := APropriedade.GetValue(Self).AsVariant;
+            end;
+          end
+        end;
+      end;
+    end;
+
+    ACampo := Trim(ACampo);
+    ACampo := Copy(ACampo, 1, ACampo.Length - 1);
+    ASql :=
+      'SELECT ' + ACampo + sLineBreak +
+      '  FROM ' + ANomeTabela + sLineBreak +
+      ' WHERE 1=2';
+    QueryTmp := TConexao.GetInstancia.CriaQuery(ASql, []);
+    try
+      QueryTmp.Insert;
+      for Parametro in Parametros do
+      begin
+        if VarToStrDef(Parametro.Value,NullAsStringValue) = NullAsStringValue then
+          QueryTmp.FieldByName(Parametro.Name).Clear
+        else if QueryTmp.FieldByName(Parametro.Name) is TBlobField then
+          raise Exception.Create('Implementar Persistencia TBlobField')
+          //TBlobField(QueryTmp.FieldByName(Parametro.Name)).LoadFromStream(Parametro.Value)
+        else
+          QueryTmp.FieldByName(Parametro.Name).Value := Parametro.Value;
+      end;
+      QueryTmp.Post;
+      for APropriedade in ATipo.GetProperties do
+      begin
+        for AAtributo in APropriedade.GetAttributes do
+        begin
+          if (AAtributo is Campo) then
+            APropriedade.SetValue(Self, Tvalue.FromVariant(QueryTmp.FieldByName(Campo(AAtributo).Nome).Value));
+        end;
+      end;
+      QueryTmp.Close;
+      Result := True;
+    finally
+      FreeAndNil(QueryTmp);
+    end;
+  finally
+    AContexto.Free;
   end;
-
-  APropriedade.SetValue(Self, Valor);
-
 end;
 
 end.
